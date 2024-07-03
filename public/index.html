@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management Tool</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-image: url('./prmanatool.jpg'); 
+            background-repeat: no-repeat;
+            background-size: cover; 
+            background-position: center center; 
+        }
+        .project-card {
+            margin-top: 20px;
+        }
+        #projectName {
+            color:#151B54;
+        }
+        .project-deadline {
+            color: #FF6700;
+        }
+        @media (max-width: 767px) {
+            .modal-dialog {
+                margin: 1.75rem auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center" style="color: #260721;">Project Management Tool</h1>
+        <div class="text-center">
+            <button class="btn btn-primary mb-3" data-toggle="modal" data-target="#projectModal">Add Project</button>
+        </div>
+        <div class="row" id="projects"></div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="projectModal" tabindex="-1" aria-labelledby="projectModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="projectModalLabel" style="color:#686A6C">Add Project</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="projectForm">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="projectName" style="color:#5453A6">Project Name</label>
+                            <input type="text" class="form-control" id="projectNameInput" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="projectDescription" style="color:#5453A6">Project Description</label>
+                            <textarea class="form-control" id="projectDescriptionInput" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="projectDeadline" style="color:#5453A6">Deadline</label>
+                            <input type="date" class="form-control" id="projectDeadlineInput" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Add Project</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let projects = [];
+
+        async function addProject(name, description, deadline) {
+            const response = await fetch('/api/projects', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name, description, deadline }),
+            });
+
+            const data = await response.json();
+            console.log(data.message);  // Debugging statement
+
+            // Fetch the updated list of projects from the server
+            await fetchProjects();
+        }
+
+        async function fetchProjects() {
+            const response = await fetch('/api/projects');
+            projects = await response.json();
+            renderProjects();
+        }
+
+        document.getElementById('projectForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const name = document.getElementById('projectNameInput').value;
+            const description = document.getElementById('projectDescriptionInput').value;
+            const deadline = document.getElementById('projectDeadlineInput').value;
+            await addProject(name, description, deadline);
+            $('#projectModal').modal('hide');
+            this.reset();
+        });
+
+        function renderProjects() {
+            const projectContainer = document.getElementById('projects');
+            projectContainer.innerHTML = '';
+
+            projects.forEach((project, index) => {
+                const projectCard = `
+                    <div class="col-lg-4 col-md-6 col-sm-12">
+                        <div class="card project-card">
+                            <div class="card-body">
+                                <h5 id="projectName" class="card-title">${project.name}</h5>
+                                <p class="card-text">${project.description}</p>
+                                <p class="card-text"><small class="project-deadline">Deadline: ${project.deadline}</small></p>
+                                <div class="progress mb-3">
+                                    <div class="progress-bar" role="progressbar" style="width: ${project.progress}%" aria-valuenow="${project.progress}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <button class="btn btn-success" onclick="updateProgress(${index})">Update Progress</button>
+                                <button class="btn btn-danger" onclick="deleteProject(${index})">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                projectContainer.innerHTML += projectCard;
+            });
+        }
+
+        async function updateProgress(index) {
+            const newProgress = prompt('Enter new progress percentage:');
+            if (newProgress !== null) {
+                const response = await fetch(`/api/projects/${index}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ progress: parseInt(newProgress, 10) }),
+                });
+
+                const data = await response.json();
+                console.log(data.message); 
+                await fetchProjects();
+            }
+        }
+
+        async function deleteProject(index) {
+            const response = await fetch(`/api/projects/${index}`, {
+                method: 'DELETE',
+            });
+
+            const data = await response.json();
+            console.log(data.message); 
+            await fetchProjects();
+        }
+
+        fetchProjects();
+    </script>
+</body>
+</html>
+
